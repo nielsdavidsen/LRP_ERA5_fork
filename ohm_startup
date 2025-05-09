@@ -1,0 +1,68 @@
+
+ssh ohm 
+
+kinit
+
+
+
+## install miniconda from DMI guide
+
+
+
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+
+
+
+./Miniforge3-Linux-x86_64.sh -p /dmidata/users/{user}/miniforge -b
+
+
+
+# activate the miniconda 
+
+source /dmidata/users/jonmel/miniforge/bin/activate
+
+
+
+
+
+## make a conda env with the relevant python installation and tools, takes a long time go for coffee
+
+conda create -n torch_ohm python=3.10 -y conda-forge::gpustat conda-forge::nvidia-ml-py pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+
+
+
+# -------------------- What are you installing?  --------------------
+
+## pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+
+#### Is the instaltion of pytorch for the A40 chip using cuda toolkit 12.4
+
+#### This is the main interface between your code and the GPU 
+
+#### and where you will develope and run your ML algorithms
+
+#
+
+## conda-forge::gpustat conda-forge::nvidia-ml-py
+
+#### Is the GPU resource monitoring tool
+
+
+
+
+
+
+
+### when ssh in again
+
+ssh ohm 
+
+kinit
+
+source /dmidata/users/jonmel/miniforge/bin/activate
+
+conda activate torch_ohm
+
+
+
+### use gpustat -i to see what gpus are in use, if 0% | 16/ 46068 then

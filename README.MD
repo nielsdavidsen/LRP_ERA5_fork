@@ -1,0 +1,7 @@
+# Layerwise Relevance Propegation on Climate Data
+
+This repo is for storing and sharing the fundamental code employed by Jonathan Melcher in his master thesis.
+
+The code was written to handle ERA5 or CMIP6 datasets. Preprocessing, training models and postprocessing afterwards. The repois ordered in thesse three categorise. The repo contains a lot of control structures to ensure generalizability and facilitate the experiments conducted in the the master thesis. Please disregard most of these, if not exactly trying to reproduce the thesis. The preprocessing scripts takes a CMIP6 netcdf file and converting it to normalised X.pkl and y.pkl files. For the model, training, and postprocessing, the code is split in 3 general scripts and 3 specific scripts. `models.py`, `training.py`, `postprocessing.py`as well as `preprocessing.py`being general function scripts used as libraries in the more specialist scripts `train_model.py`, `lrp_plots`, and `inspect_model.py`. This division is reflected in the `run_analysis.sh` only calling the 3 specific scripts with flags to guide what experiment to execute. 
+
+To get started on ohm one can read the ohm_startup file here. Remember to aviod anaconda installations in DMI servers. Minconda, miniforge or similar is fine.
