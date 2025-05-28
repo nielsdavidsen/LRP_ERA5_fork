@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+import optuna
 
 import torch
 import torch.optim as optim
@@ -31,9 +32,12 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from scipy.stats import gamma as gamma_dist
 
-class gamma_activation(nn.Module):
-    def forward(self, x):
-        return torch.gamma_dist.cdf(x, a=1.0, scale=1.0)  # Example parameters, adjust as needed
+
+
+
+# class gamma_activation(nn.Module):
+#     def forward(self, x):
+#         return torch.gamma_dist.cdf(x, a=1.0, scale=1.0)  # Example parameters, adjust as needed
 
 def standard_scale_day(group, eps = 1e-6):
     mean_val = group.mean(dim='valid_time')
@@ -139,7 +143,11 @@ class Model_FFN:
          file_paths_prec = [os.path.join(self.data_path, fname) for fname in target_prec]
          ds_prec = xr.open_mfdataset(file_paths_prec, combine='by_coords')
          ds_prec = ds_prec.mean(dim= ['longitude', 'latitude'])
+       
+      
          prec_target = ds_prec.tp.values
+
+             
          if np.isnan(prec_target).any():
                 raise ValueError("NaN values found in the target data. Please check the dataset for missing values.")
          
@@ -254,7 +262,7 @@ class Model_FFN:
                 layers.append(nn.Sigmoid()) if Sigmoid_output else None
                 layers.append(nn.ReLU()) if ReLU_output else None
                 ##exponential activation
-                layers.append(gamma_activation()) if gamma_output else None
+                #layers.append(gamma_activation()) if gamma_output else None
 
 
                 # Use Sequential for compactness
@@ -342,8 +350,82 @@ class Model_FFN:
          plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
          mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
          plt.title(f'Model Predictions vs True Values (MSE: {mse:.4f})')
+         return mse
 
         
+     def optuna_trial(self, ntrials = 3):
+         def objective(trial):
+            hidden_dims = trial.suggest_categorical("hidden_dims", [
+    [512, 256],
+    [512, 512, 256],
+    [1024, 512, 256],
+    [1024, 1024, 512, 256],
+    [2048, 1024, 512],
+    [2048, 1024, 512, 256],
+    [2048, 2048, 1024, 1024, 512],
+    [2048, 2048, 1024, 1024, 1024, 1024, 256],
+    [2048, 2048, 2048, 1024, 1024, 1024, 1024, 512, 256],
+    [2048, 2048, 2048, 2048, 2048, 1024, 1024, 1024, 512, 256],
+
+    [4096, 2048, 1024],
+    [4096, 2048, 1024, 512],
+    [4096, 2048, 1024, 512, 256],
+    [4096, 2048, 1024, 512, 256, 128],
+    [4096, 2048, 1024, 512, 256, 128, 64],
+    [4096, 2048, 2048, 1024, 512, 256, 128, 64],
+    [4096, 4096, 2048, 1024, 512, 256],
+    [4096, 4096, 2048, 1024, 512, 256, 128],
+    [4096, 4096, 2048, 2048, 1024, 512, 256, 128, 64],
+    [4096, 4096, 4096, 2048, 1024, 512, 256, 128, 64, 64],  # 10 layers
+
+    [2048, 1024, 512, 256, 128, 64],
+    [2048, 1024, 512, 512, 256, 128, 64],
+    [2048, 2048, 1024, 512, 256, 256, 128, 64],
+    [2048, 2048, 2048, 1024, 512, 256, 256, 128, 64],
+    [1024, 512, 256, 128, 64],
+    [1024, 1024, 512, 256, 128, 64],
+    [512, 512, 256, 128, 64],
+    [512, 256, 128, 64],
+])
+
+
+            dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
+            learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-3)
+            weight_decay = trial.suggest_loguniform("weight_decay", 1e-6, 1e-3)
+            activation_choice = trial.suggest_categorical("output_activation", ["none", "sigmoid", "relu"])
+
+            sigmoid_out = activation_choice == "sigmoid"
+            relu_out = activation_choice == "relu"
+
+            # Data/model setup
+           
+            self.build_model(
+                hidden_dims=hidden_dims,
+                dropout_rate=dropout_rate,
+                Sigmoid_output=sigmoid_out,
+                ReLU_output=relu_out
+            )
+
+            # Training
+            self.train_model(
+                epochs=100,
+                batch_size=128,
+                learning_rate=learning_rate,
+                weight_decay=weight_decay,
+                patience=10,
+                factor=0.5,
+                early_stopping_patience=7
+            )
+            mse = self.plot_model_on_test()
+            return mse
+
+        # 🚀 Run Optuna Study
+         study = optuna.create_study(direction="minimize")
+         study.optimize(objective, n_trials=ntrials)
+         return study.best_trial
+
+
+                
 
 
 
