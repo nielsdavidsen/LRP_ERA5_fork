@@ -84,6 +84,7 @@ class Model_FFN:
         self.y_test = None
         self.model = None
         self.best_model_state = None
+        self.ypred = None
 
      def load_data(self, sub_sampling = False, sub_sample_dim = 4):
          '''
@@ -184,9 +185,13 @@ class Model_FFN:
             print("Lagged target shape:", self.target.shape)
         
              
-     def prepare_data_for_tensorflow(self, test_size = 250 , print_shapes = True):
+     def prepare_data_for_tensorflow(self, test_size = .1 , print_shapes = True):
          ##take 250 random samples from X to test the model
-         random_indices = np.random.choice(self.X.shape[0], size=test_size, replace=False)
+         n = self.X.shape[0]
+         test_size = int(test_size * n)
+         np.random.seed(42-1)  # 42 - 1
+
+         random_indices = np.random.choice(n, size=test_size, replace=False)
         # Create a boolean mask for test data
          mask = np.zeros(self.X.shape[0], dtype=bool)
          mask[random_indices] = True
@@ -347,6 +352,9 @@ class Model_FFN:
                 self.model.load_state_dict(self.best_model_state)
 
             #return self.model
+     def evaluate_test(self):
+         self.ypred = self.model(self.X_test).detach().numpy()
+
      def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
          plt.figure(figsize=(10, 5))
          plt.plot(self.y_test.numpy(), label='True Values', color='blue')
@@ -358,7 +366,7 @@ class Model_FFN:
          if save_name is not None:
             plt.savefig(save_name)
 
-         return mse, mae
+         return mae
 
         
      def optuna_trial(self, ntrials = 3):
@@ -425,11 +433,15 @@ class Model_FFN:
                 early_stopping_patience=7
             )
             mse, mae = self.plot_model_on_test()
-            return mse, mae
+            return mae
 
         # 🚀 Run Optuna Study
          study = optuna.create_study(direction="minimize")
          study.optimize(objective, n_trials=ntrials)
+         ##save the study.best_trial wiht pickle
+         import pickle
+         with open('best_trial.pkl', 'wb') as f:
+            pickle.dump(study.best_trial, f)
          return study.best_trial
 
 
