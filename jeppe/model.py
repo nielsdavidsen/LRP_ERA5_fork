@@ -279,7 +279,7 @@ class Model_FFN:
          print("Model summary:", summary(model, input_size=(1, input_dim), verbose=0))
          #return model
      
-     def train_model(self, epochs=100, batch_size=128, learning_rate=1e-4, validation_split=0.2,
+     def train_model(self,loss_fcn = 'mae', epochs=100, batch_size=128, learning_rate=1e-4, validation_split=0.2,
                       weight_decay=1e-5, patience=5, factor=0.5, early_stopping_patience = 5):
 
 
@@ -292,7 +292,10 @@ class Model_FFN:
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         # Loss, optimizer, and scheduler
-        criterion = nn.MSELoss()
+        if loss_fcn == 'mae':
+            criterion = nn.L1Loss()
+        if loss_fcn == 'mse': 
+            criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=factor, patience=patience,
                                       )
@@ -344,13 +347,18 @@ class Model_FFN:
                 self.model.load_state_dict(self.best_model_state)
 
             #return self.model
-     def plot_model_on_test(self):
+     def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
          plt.figure(figsize=(10, 5))
          plt.plot(self.y_test.numpy(), label='True Values', color='blue')
          plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
          mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
-         plt.title(f'Model Predictions vs True Values (MSE: {mse:.4f})')
-         return mse
+         mae = np.mean(np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy()))
+         title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
+         plt.title(title)
+         if save_name is not None:
+            plt.savefig(save_name)
+
+         return mse, mae
 
         
      def optuna_trial(self, ntrials = 3):
@@ -416,8 +424,8 @@ class Model_FFN:
                 factor=0.5,
                 early_stopping_patience=7
             )
-            mse = self.plot_model_on_test()
-            return mse
+            mse, mae = self.plot_model_on_test()
+            return mse, mae
 
         # 🚀 Run Optuna Study
          study = optuna.create_study(direction="minimize")
@@ -425,7 +433,8 @@ class Model_FFN:
          return study.best_trial
 
 
-                
+
+
 
 
 
