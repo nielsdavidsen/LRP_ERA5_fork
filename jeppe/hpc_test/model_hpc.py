@@ -327,7 +327,12 @@ class Model_FFN:
          input_dim = self.X.shape[1] * self.X.shape[2] * self.X.shape[3]
 
          model = FFNN(input_dim)
-         self.model = model
+
+
+
+         self.model = model.to(self.DEVICE)
+
+         
          print("Model summary:", summary(model, input_size=(1, input_dim), verbose=0))
          #return model
      

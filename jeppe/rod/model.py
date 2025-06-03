@@ -31,36 +31,6 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from scipy.stats import gamma as gamma_dist
-from captum.attr._utils.lrp_rules import EpsilonRule
-from captum.attr import LRP
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-
-
-# ----- Borrowed from Melcher -----
-class StableBatchNormRule(EpsilonRule):
-    def __init__(self, epsilon=1e-6, stabilizer=1e-3):
-        super().__init__(epsilon)
-        self.stabilizer = stabilizer
-    
-    def forward_hook(self, module, inputs, outputs):
-        """Store normalized inputs for better relevance propagation"""
-        self.normalized_input = (inputs[0] - module.running_mean[None, :]) / torch.sqrt(module.running_var[None, :] + module.eps)
-        return super().forward_hook(module, inputs, outputs)
-    
-    def backward_hook(self, module, grad_input, grad_output):
-        """Stabilize the gradient propagation"""
-        # Apply stabilization to prevent explosion
-        grad_modified = grad_input[0] / (torch.norm(grad_input[0], dim=1, keepdim=True) + self.stabilizer)
-        return (grad_modified,) + grad_input[1:]
-    
-rules_dict = {
-    nn.ReLU: EpsilonRule(epsilon=1e-6), 
-    nn.Sigmoid: EpsilonRule(epsilon=1e-6), 
-    nn.ELU: EpsilonRule(epsilon=1e-6),
-    nn.BatchNorm1d: StableBatchNormRule(epsilon=1e-6, stabilizer=1e-3)
-}
-# ------------------------------------
 
 
 
@@ -115,9 +85,6 @@ class Model_FFN:
         self.model = None
         self.best_model_state = None
         self.ypred = None
-        self.OG_shape = None
-        self.lat_for_plot = None
-        self.lon_for_plot = None
 
      def load_data(self, sub_sampling = False, sub_sample_dim = 4):
          '''
@@ -135,13 +102,7 @@ class Model_FFN:
          ds_msl = xr.open_mfdataset(file_paths_msl, combine='by_coords').sel(
     latitude=slice(self.latitude_range[0], self.latitude_range[1]),
     longitude=slice(self.longitude_range[0], self.longitude_range[1])
-
 )
-         self.lat_for_plot = ds_msl.latitude.values
-         self.lon_for_plot = ds_msl.longitude.values
-
-
-
          doy = ds_msl['valid_time'].dt.dayofyear
          ds_msl = ds_msl.assign_coords(day_of_year=doy) ## 28 feb is 366. i have 2 of these in the 5 years.
          msl_stand = ds_msl['msl'].groupby('day_of_year').map(standard_scale_day) ## scale the data
@@ -225,8 +186,10 @@ class Model_FFN:
         
              
      def prepare_data_for_tensorflow(self, test_size = .1 , print_shapes = True):
+         ##take 250 random samples from X to test the model
          n = self.X.shape[0]
          test_size = int(test_size * n)
+         np.random.seed(42-1)  # 42 - 1
 
          random_indices = np.random.choice(n, size=test_size, replace=False)
         # Create a boolean mask for test data
@@ -257,8 +220,6 @@ class Model_FFN:
         # Create dataset
          dataset = TensorDataset(X, y)
          self.dataset = dataset
-
-         self.OG_shape = X_test.shape
 
          self.X_test = torch.from_numpy(X_test).view(X_test.shape[0], -1)
          self.y_test = torch.from_numpy(y_test).view(y_test.shape[0], 1)
@@ -319,11 +280,10 @@ class Model_FFN:
          input_dim = self.X.shape[1] * self.X.shape[2] * self.X.shape[3]
 
          model = FFNN(input_dim)
-
          self.model = model
-
          print("Model summary:", summary(model, input_size=(1, input_dim), verbose=0))
-
+         #return model
+     
      def train_model(self,loss_fcn = 'mae', epochs=100, batch_size=128, learning_rate=1e-4, validation_split=0.2,
                       weight_decay=1e-5, patience=5, factor=0.5, early_stopping_patience = 5):
 
@@ -392,8 +352,21 @@ class Model_FFN:
                 self.model.load_state_dict(self.best_model_state)
 
             #return self.model
+     def evaluate_test(self):
+         self.ypred = self.model(self.X_test).detach().numpy()
 
+     def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
+         plt.figure(figsize=(10, 5))
+         plt.plot(self.y_test.numpy(), label='True Values', color='blue')
+         plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
+         mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
+         mae = np.mean(np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy()))
+         title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
+         plt.title(title)
+         if save_name is not None:
+            plt.savefig(save_name)
 
+         return mae
 
         
      def optuna_trial(self, ntrials = 3):
@@ -460,7 +433,7 @@ class Model_FFN:
                 early_stopping_patience=7
             )
             mse, mae = self.plot_model_on_test()
-            return mse
+            return mae
 
         # 🚀 Run Optuna Study
          study = optuna.create_study(direction="minimize")
@@ -470,87 +443,6 @@ class Model_FFN:
          with open('best_trial.pkl', 'wb') as f:
             pickle.dump(study.best_trial, f)
          return study.best_trial
-     
-     def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
-         plt.figure(figsize=(10, 5))
-         plt.plot(self.y_test.numpy(), label='True Values', color='blue')
-         plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
-         mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
-         mae = np.mean(np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy()))
-         title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
-         plt.title(title)
-         if save_name is not None:
-            plt.savefig(save_name)
-
-         return mse, mae
-     
-     
-     def lrp_calc_and_plot(self, save_name = None, title = 'LRP Attribution for FFNN Model'):
-
-    
-        input_tensor = self.X_test.view(self.X_test.shape[0], -1).clone().detach().requires_grad_(True)
-        # aplying rules to the model
-        for layer in self.model.modules():
-            for key, value in rules_dict.items():
-                if isinstance(layer, key):
-                    layer.rule = value
-        
-
-        lrp = LRP(self.model)
-        attributions = lrp.attribute(input_tensor)
-        attributions = attributions.detach().cpu().numpy()  # Convert to numpy array
-
-        if self.OG_shape is not None:
-            attr_sum = np.sum(attributions.reshape(self.OG_shape), axis=0)
-        
-        global_max = max(
-            np.abs(attr_sum[0].max()),
-            np.abs(attr_sum[1].max())
-        )
-
-        lrp_norm = attr_sum / global_max
-
-        fig, axs = plt.subplots(ncols=2, 
-                               nrows=1, 
-                               figsize=(15,10), 
-                               subplot_kw={'projection': ccrs.NorthPolarStereo() },
-                               dpi = 300
-        )
-        
-        for ax in axs.flatten():
-            ax.coastlines()
-            ax.gridlines()
-            ax.set_extent([-90, 30, 39, 90], ccrs.PlateCarree()
-        )
-
-        axs[0].set_title('LRP Attribution for 850hPa Temperature')
-        cbar = axs[0].pcolormesh(self.lon_for_plot,
-                                self.lat_for_plot,
-                                lrp_norm[0],
-                                cmap='coolwarm',
-                                transform=ccrs.PlateCarree(),
-                                vmin=-1, vmax=1
-        )
-
-        axs[1].set_title('LRP Attribution for Mean Sea Level Pressure')
-        axs[1].pcolormesh(self.lon_for_plot,
-                                self.lat_for_plot,
-                                lrp_norm[1],
-                                cmap='coolwarm',
-                                transform=ccrs.PlateCarree(),
-                                vmin=-1, vmax=1
-        )
-
-        # Add Colorbar to the plot
-        fig.colorbar(cbar, 
-                     ax=axs, 
-                     orientation='horizontal', 
-                     fraction=0.02, 
-                     pad=0.04, 
-                     label='LRP Attribution Value')
-        plt.suptitle('LRP Attribution for FFNN Model', fontsize=16)
-        if save_name is not None:
-            plt.savefig(save_name, dpi=300)
 
 
 

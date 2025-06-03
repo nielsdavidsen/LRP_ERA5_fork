@@ -1,12 +1,12 @@
 import os
 import sys
-
 import torch
+from model import Model_FFN
+
 
 device = torch.device('cuda:3') if torch.cuda.is_available() else 'cpu'
 print('Using device:', device)
 
-from model import Model_FFN
 
 lag = 4
 model = 0
