@@ -1,8 +1,8 @@
 import os
 import sys
 import torch
-device = torch.device('cuda:3') if torch.cuda.is_available() else 'cpu'
-
+device = torch.device('cuda:0') if torch.cuda.is_available() else 'cpu'
+print(device)
 from model_hpc import Model_FFN
 import time
 t0 = time.time()
@@ -39,7 +39,7 @@ def apply_best_hyperparams(model, best_params):
 
 # lag = 4
 # model = 0
-# # model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
+# model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
 # model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5')
 # model.load_data(sub_sampling=False, five_year_test=True)
 # model.lag_data(lag=lag)
@@ -53,8 +53,7 @@ with open('optuna_study_results.pkl', 'rb') as f:
 
 lag = 4
 model = 0
-# model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
-model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5')
+model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
 model.load_data(sub_sampling=False, five_year_test=True)
 model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.1)
