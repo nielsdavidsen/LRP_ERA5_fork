@@ -472,15 +472,14 @@ class Model_FFN:
          return study.best_trial
      
      def plot_model_on_test(self, ax_title= 'Model Performance on Test Data', save_name = None):
-
-        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 5))
-
         rc = {
             "font.family": "serif",
             "mathtext.fontset": "stix"
         }
         plt.rcParams.update(rc)
         plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
+
+        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 5))
 
         ax[0].plot(self.y_test.numpy(), label='True Values', color='teal')
         ax[0].plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='orange')   
@@ -563,7 +562,7 @@ class Model_FFN:
 
         fig, axs = plt.subplots(ncols=2, 
                                nrows=1, 
-                               figsize=(15,5), 
+                               figsize=(12,5), 
                                subplot_kw={'projection': ccrs.NorthPolarStereo() },
                                dpi = 300
         )
