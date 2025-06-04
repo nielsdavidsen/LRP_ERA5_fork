@@ -123,6 +123,7 @@ class Model_FFN:
          '''
          the sorting key is wrong, as the dmi format is different.
          '''
+         print("ipsaeigpasrk")
          ################################MSL##########################################
          input_files_msl = [f for f in os.listdir(self.data_path) if f.endswith('.nc') and 'mean_sea_level_pressure' in f]
          input_files_msl.sort(key=lambda x: int(x.split('_')[1].split('.')[0]))
@@ -133,10 +134,10 @@ class Model_FFN:
         # Then open all files with xarray
 
          ds_msl = xr.open_mfdataset(file_paths_msl, combine='by_coords').sel(
-    latitude=slice(self.latitude_range[0], self.latitude_range[1]),
-    longitude=slice(self.longitude_range[0], self.longitude_range[1])
+                        latitude=slice(self.latitude_range[0], self.latitude_range[1]),
+                        longitude=slice(self.longitude_range[0], self.longitude_range[1])
 
-)
+        )
          self.lat_for_plot = ds_msl.latitude.values
          self.lon_for_plot = ds_msl.longitude.values
 
@@ -257,9 +258,7 @@ class Model_FFN:
         # Create dataset
          dataset = TensorDataset(X, y)
          self.dataset = dataset
-
          self.OG_shape = X_test.shape
-
          self.X_test = torch.from_numpy(X_test).view(X_test.shape[0], -1)
          self.y_test = torch.from_numpy(y_test).view(y_test.shape[0], 1)
 
@@ -272,7 +271,7 @@ class Model_FFN:
                      ReLU_output = False,
                      gamma_output = False):
          class FFNN(nn.Module):
-             def __init__(self, input_dim, dropout_rate=0.1):
+             def __init__(self, input_dim, dropout_rate=dropout_rate):
                 super().__init__()
 
                 #hidden_dims = [4096, 2048, 2048, 2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024, 256]
@@ -302,9 +301,10 @@ class Model_FFN:
                 layers.append(final_later)
 
 
-
-                layers.append(nn.Sigmoid()) if Sigmoid_output else None
-                layers.append(nn.ReLU()) if ReLU_output else None
+                if Sigmoid_output:
+                    layers.append(nn.Sigmoid())
+                if ReLU_output:
+                    layers.append(nn.ReLU()) 
                 ##exponential activation
                 #layers.append(gamma_activation()) if gamma_output else None
 
@@ -388,8 +388,8 @@ class Model_FFN:
                 if epochs_no_improve >= early_stopping_patience:
                     print("Early stopping triggered.")
                     break
-            if self.best_model_state is not None:
-                self.model.load_state_dict(self.best_model_state)
+            # if self.best_model_state is not None:
+            #     self.model.load_state_dict(self.best_model_state)
 
             #return self.model
 
@@ -488,7 +488,12 @@ class Model_FFN:
      def lrp_calc_and_plot(self, save_name = None, title = 'LRP Attribution for FFNN Model'):
 
     
+
+        ##### below is prev code, testing the code above
+
+        # fig_lrp, ax_lrp = plrp.plot_LRP(attr_sum)
         input_tensor = self.X_test.view(self.X_test.shape[0], -1).clone().detach().requires_grad_(True)
+
         # aplying rules to the model
         for layer in self.model.modules():
             for key, value in rules_dict.items():
@@ -496,7 +501,10 @@ class Model_FFN:
                     layer.rule = value
         
 
+        
+
         lrp = LRP(self.model)
+
         attributions = lrp.attribute(input_tensor)
         attributions = attributions.detach().cpu().numpy()  # Convert to numpy array
 

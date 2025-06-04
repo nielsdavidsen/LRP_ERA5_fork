@@ -7,7 +7,7 @@ device = torch.device('cuda:3') if torch.cuda.is_available() else 'cpu'
 print('Using device:', device)
 
 from model import Model_FFN
-lags =[1,5,20]
+lags =[1,2,5,20]
 
 def apply_best_hyperparams(model, best_params):
     # Unpack parameters
@@ -37,6 +37,7 @@ def apply_best_hyperparams(model, best_params):
     )
 
 
+
 lag = 0
 print("_______________________________________________________________________________________________________________________________________")
 model = 0
@@ -45,10 +46,11 @@ model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/
 model.load_data(sub_sampling=False)
 #model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.15)
-model.build_model(dropout_rate=0.1, hidden_dims=[2048, 1024, 512, 256])
+model.build_model(dropout_rate=0.1, hidden_dims=[2048, 1024, 512, 256], Sigmoid_output=True,)
 model.train_model(loss_fcn='mae')
-model.plot_model_on_test(title=f'FFN model with lag {lag}', save_name='ffn_lag_' + str(lag) + '.png')
+model.plot_model_on_test(title=f'FFN model with lag {lag}', save_name='better_ffn_lag_' + str(lag) + '.png')
 print(model.X_test.shape)
+print(f"plotting for lag {lag}")
 model.lrp_calc_and_plot(save_name='better_ffn_lag_' + str(lag) + '_lrp.png')
 for lag in lags:
     print("_______________________________________________________________________________________________________________________________________")
@@ -58,10 +60,11 @@ for lag in lags:
     model.load_data(sub_sampling=False)
     model.lag_data(lag=lag)
     model.prepare_data_for_tensorflow(test_size=0.15)
-    model.build_model(dropout_rate=0.1, hidden_dims=[2048, 1024, 512, 256])
+    model.build_model(dropout_rate=0.1, hidden_dims=[2048, 1024, 512, 256], Sigmoid_output=True,)
     model.train_model(loss_fcn='mae')
     model.plot_model_on_test(title=f'FFN model with lag {lag}', save_name='better_ffn_lag_' + str(lag) + '.png')
-    print(model.X_test.shape)
+    print(f"plotting for lag {lag}")
     model.lrp_calc_and_plot(save_name='better_ffn_lag_' + str(lag) + '_lrp.png')
+
 
 

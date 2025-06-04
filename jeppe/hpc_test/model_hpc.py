@@ -103,7 +103,7 @@ def sample_data(X, n):
     return result_datasets
 
 class Model_FFN:
-     def __init__(self, data_path, latitude_range=(70, 40.25), longitude_range=(-80, 21.75), DEVICE = 'cpu'):
+    def __init__(self, data_path, latitude_range=(70, 40.25), longitude_range=(-80, 21.75), DEVICE = 'cpu'):
         self.data_path = data_path
         self.latitude_range = latitude_range
         self.longitude_range = longitude_range
@@ -121,88 +121,88 @@ class Model_FFN:
         self.lat_for_plot = None
         self.lon_for_plot = None
 
-     def load_data(self, sub_sampling = False, sub_sample_dim = 4, five_year_test = False):
-         file_paths_msl = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_mean_sea_level_pressure_merged.nc"
-         ds_msl = xr.open_dataset(file_paths_msl).sel(
-    latitude=slice(self.latitude_range[0], self.latitude_range[1]),
-    longitude=slice(self.longitude_range[0], self.longitude_range[1])
-)
-         self.lat_for_plot = ds_msl.latitude.values
-         self.lon_for_plot = ds_msl.longitude.values
-         doy = ds_msl['valid_time'].dt.dayofyear
-         ds_msl = ds_msl.assign_coords(day_of_year=doy) ## 28 feb is 366. i have 2 of these in the 5 years.
-         msl_stand = ds_msl['msl'].groupby('day_of_year').map(standard_scale_day) ## scale the data
-         ds_msl['msl_stand'] = msl_stand
-         if five_year_test:
+    def load_data(self, sub_sampling = False, sub_sample_dim = 4, five_year_test = False):
+        file_paths_msl = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_mean_sea_level_pressure_merged.nc"
+        ds_msl = xr.open_dataset(file_paths_msl).sel(
+            latitude=slice(self.latitude_range[0], self.latitude_range[1]),
+            longitude=slice(self.longitude_range[0], self.longitude_range[1])
+        )
+        self.lat_for_plot = ds_msl.latitude.values
+        self.lon_for_plot = ds_msl.longitude.values
+        doy = ds_msl['valid_time'].dt.dayofyear
+        ds_msl = ds_msl.assign_coords(day_of_year=doy) ## 28 feb is 366. i have 2 of these in the 5 years.
+        msl_stand = ds_msl['msl'].groupby('day_of_year').map(standard_scale_day) ## scale the data
+        ds_msl['msl_stand'] = msl_stand
+        if five_year_test:
             print("Using 5-year test data...")
             ds_msl = ds_msl.isel(time=slice(0, 1827))
             msl_input = ds_msl.msl_stand.values 
-         if not five_year_test:
+        if not five_year_test:
             print("Using full dataset...")
             msl_input = ds_msl.msl_stand.values
 
 
-         if np.isnan(msl_input).any():
-                raise ValueError("NaN values found in the input data. Please check the dataset for missing values.")
+        if np.isnan(msl_input).any():
+            raise ValueError("NaN values found in the input data. Please check the dataset for missing values.")
 
-         print("Msl input shape:", msl_input.shape)
-
-
-        ##################################T2m#############################################
+        print("Msl input shape:", msl_input.shape)
 
 
-         file_paths_t850 = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_temperature_merged.nc"
-         ds_t850 = xr.open_dataset(file_paths_t850).isel(pressure_level=0).sel(
-    latitude=slice(self.latitude_range[0], self.latitude_range[1]),
-    longitude=slice(self.longitude_range[0], self.longitude_range[1])
-)
-         doy_t850 = ds_t850['valid_time'].dt.dayofyear
-         ds_t850 = ds_t850.assign_coords(day_of_year=doy_t850)
-         t850_stand = ds_t850['t'].groupby('day_of_year').map(standard_scale_day)
-         ds_t850['t850_stand'] = t850_stand
+##################################T2m#############################################
 
-         if five_year_test:
+
+        file_paths_t850 = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_temperature_merged.nc"
+        ds_t850 = xr.open_dataset(file_paths_t850).isel(pressure_level=0).sel(
+                                latitude=slice(self.latitude_range[0], self.latitude_range[1]),
+                                longitude=slice(self.longitude_range[0], self.longitude_range[1])
+                                        )
+        doy_t850 = ds_t850['valid_time'].dt.dayofyear
+        ds_t850 = ds_t850.assign_coords(day_of_year=doy_t850)
+        t850_stand = ds_t850['t'].groupby('day_of_year').map(standard_scale_day)
+        ds_t850['t850_stand'] = t850_stand
+
+        if five_year_test:
             print("Using 5-year test data...")
             ds_t850 = ds_t850.isel(time=slice(0, 1827))
             t850_input = ds_t850.t850_stand.values
-         if not five_year_test:
+        if not five_year_test:
             print("Using full dataset...")
             t850_input = ds_t850.t850_stand.values
-         if np.isnan(t850_input).any():
-                raise ValueError("NaN values found in the input data. Please check the dataset for missing values.")
+        if np.isnan(t850_input).any():
+            raise ValueError("NaN values found in the input data. Please check the dataset for missing values.")
 
-         print("T850 input shape:", t850_input.shape)
-
-
-         #################### precipitation ##########################################
+        print("T850 input shape:", t850_input.shape)
 
 
-         file_paths_prec = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_total_precipitation_merged.nc"
-         ds_prec = xr.open_mfdataset(file_paths_prec)
-         ds_prec = ds_prec.mean(dim= ['longitude', 'latitude'])
-       
-      
-         prec_target = ds_prec.tp.values
+    #################### precipitation ##########################################
 
-             
-         if np.isnan(prec_target).any():
+
+        file_paths_prec = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_total_precipitation_merged.nc"
+        ds_prec = xr.open_mfdataset(file_paths_prec)
+        ds_prec = ds_prec.mean(dim= ['longitude', 'latitude'])
+
+
+        prec_target = ds_prec.tp.values
+
+        
+        if np.isnan(prec_target).any():
                 raise ValueError("NaN values found in the target data. Please check the dataset for missing values.")
-         
-         if five_year_test:
+        
+        if five_year_test:
             print("Using 5-year test data...")
             prec_target = prec_target[:1827]
-         if not five_year_test:
+        if not five_year_test:
             print("Using full dataset...")
 
-         print("Precipitation target shape:", prec_target.shape)
+        print("Precipitation target shape:", prec_target.shape)
 
 
 
 
 
-         X = np.stack([t850_input, msl_input], axis=1)
+        X = np.stack([t850_input, msl_input], axis=1)
         
-         if sub_sampling:
+        if sub_sampling:
             print("Sub-sampling data...")
             X_c = sample_data(X, n=sub_sample_dim)
             print("Sub-sampled X shape:", X_c.shape)
@@ -214,7 +214,7 @@ class Model_FFN:
 
 
 
-         else:
+        else:
             print("No sub-sampling applied.")
             print("X shape:", X.shape)
             print("Precipitation target shape:", prec_target.shape)
@@ -223,64 +223,64 @@ class Model_FFN:
             #return X, prec_target
          
 
-     def lag_data(self, lag=1):
-            self.lag = lag
-            self.X = self.X[:-lag]            # Shape: (1827 - lag, 2, 121, 409)
-            self.target = self.target[lag:]
-            print("Lagged X shape:", self.X.shape)
-            print("Lagged target shape:", self.target.shape)
+    def lag_data(self, lag=1):
+        self.lag = lag
+        self.X = self.X[:-lag]            # Shape: (1827 - lag, 2, 121, 409)
+        self.target = self.target[lag:]
+        print("Lagged X shape:", self.X.shape)
+        print("Lagged target shape:", self.target.shape)
         
              
-     def prepare_data_for_tensorflow(self, test_size = .1 , print_shapes = True):
-         ##take 250 random samples from X to test the model
-         n = self.X.shape[0]
-         test_size = int(test_size * n)
-         np.random.seed(42-1)  # 42 - 1
+    def prepare_data_for_tensorflow(self, test_size = .1 , print_shapes = True):
+        ##take 250 random samples from X to test the model
+        n = self.X.shape[0]
+        test_size = int(test_size * n)
+        np.random.seed(42-1)  # 42 - 1
 
-         random_indices = np.random.choice(n, size=test_size, replace=False)
-        # Create a boolean mask for test data
-         mask = np.zeros(self.X.shape[0], dtype=bool)
-         mask[random_indices] = True
+        random_indices = np.random.choice(n, size=test_size, replace=False)
+    # Create a boolean mask for test data
+        mask = np.zeros(self.X.shape[0], dtype=bool)
+        mask[random_indices] = True
 
-        # Split the data using the mask
-         X_test = self.X[mask]
-         X_train = self.X[~mask]
-         scaler = MinMaxScaler()
+    # Split the data using the mask
+        X_test = self.X[mask]
+        X_train = self.X[~mask]
+        scaler = MinMaxScaler()
 
-         y_test = scaler.fit_transform(self.target[mask].reshape(-1, 1))
-         y_train =scaler.transform(self.target[~mask].reshape(-1, 1))
-         if print_shapes:
+        y_test = scaler.fit_transform(self.target[mask].reshape(-1, 1))
+        y_train =scaler.transform(self.target[~mask].reshape(-1, 1))
+        if print_shapes:
             print("X_train shape:", X_train.shape)
             print("y_train shape:", y_train.shape)
             print("X_test shape:", X_test.shape)
             print("y_test shape:", y_test.shape)
-         X_tensor = torch.from_numpy(X_train)
-         y_tensor = torch.from_numpy(y_train)
-         print(X_tensor.shape)
-         print(y_tensor.shape)
+        X_tensor = torch.from_numpy(X_train)
+        y_tensor = torch.from_numpy(y_train)
+        print(X_tensor.shape)
+        print(y_tensor.shape)
 
 
-         X = X_tensor.view(X_train.shape[0], -1)
-         y = y_tensor.view(y_train.shape[0], 1)
+        X = X_tensor.view(X_train.shape[0], -1).to(self.DEVICE)
+        y = y_tensor.view(y_train.shape[0], 1).to(self.DEVICE)
 
-        # Create dataset
-         dataset = TensorDataset(X, y)
-         self.dataset = dataset
-         self.OG_shape = X_test.shape
+    # Create dataset
+        dataset = TensorDataset(X, y)
+        self.dataset = dataset
+        self.OG_shape = X_test.shape
 
-         self.X_test = torch.from_numpy(X_test).view(X_test.shape[0], -1)
-         self.y_test = torch.from_numpy(y_test).view(y_test.shape[0], 1)
+        self.X_test = torch.from_numpy(X_test).view(X_test.shape[0], -1).to(self.DEVICE)
+        self.y_test = torch.from_numpy(y_test).view(y_test.shape[0], 1)
 
-         #return dataset, X_test, y_test, 
-    
+        #return dataset, X_test, y_test, 
+
      
-     def build_model(self, dropout_rate=0.1,
+    def build_model(self, dropout_rate=0.1,
                      hidden_dims=[2048, 2048,1024, 1024,1024, 1024, 256],
                      Sigmoid_output = False,
                      ReLU_output = False,
                      gamma_output = False):
-         class FFNN(nn.Module):
-             def __init__(self, input_dim, dropout_rate=0.1):
+        class FFNN(nn.Module):
+            def __init__(self, input_dim, dropout_rate=0.1):
                 super().__init__()
 
                 #hidden_dims = [4096, 2048, 2048, 2048, 2048, 1024, 1024, 1024, 1024, 1024, 1024, 256]
@@ -311,32 +311,32 @@ class Model_FFN:
 
 
 
-                layers.append(nn.Sigmoid()) if Sigmoid_output else None
-                layers.append(nn.ReLU()) if ReLU_output else None
-                ##exponential activation
-                #layers.append(gamma_activation()) if gamma_output else None
-
+                if Sigmoid_output:
+                    layers.append(nn.Sigmoid())
+                if ReLU_output:
+                    layers.append(nn.ReLU()) if ReLU_output else None
+             
 
                 # Use Sequential for compactness
                 self.model = nn.Sequential(*layers)
 
-             def forward(self, x):
-                 return self.model(x)
+            def forward(self, x):
+                return self.model(x)
 
         # Model setup
-         input_dim = self.X.shape[1] * self.X.shape[2] * self.X.shape[3]
+        input_dim = self.X.shape[1] * self.X.shape[2] * self.X.shape[3]
 
-         model = FFNN(input_dim)
+        model = FFNN(input_dim)
 
 
 
-         self.model = model.to(self.DEVICE)
+        self.model = model.to(self.DEVICE)
 
          
-         print("Model summary:", summary(model, input_size=(1, input_dim), verbose=0))
+        print("Model summary:", summary(model, input_size=(1, input_dim), verbose=0))
          #return model
      
-     def train_model(self,loss_fcn = 'mae', epochs=100, batch_size=128, learning_rate=1e-4, validation_split=0.2,
+    def train_model(self,loss_fcn = 'mae', epochs=100, batch_size=128, learning_rate=1e-4, validation_split=0.2,
                       weight_decay=1e-5, patience=5, factor=0.5, early_stopping_patience = 5):
 
 
@@ -404,57 +404,69 @@ class Model_FFN:
                 self.model.load_state_dict(self.best_model_state)
 
             #return self.model
-     def evaluate_test(self):
-         self.ypred = self.model(self.X_test).detach().numpy()
+   
 
-     def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
-         plt.figure(figsize=(10, 5))
-         plt.plot(self.y_test.numpy(), label='True Values', color='blue')
-         plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
-         mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
-         mae = np.mean(np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy()))
-         title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
-         plt.title(title)
-         if save_name is not None:
-            plt.savefig(save_name)
-
-         return mae
+    def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
+        ## get self.model(self.X_test).detach().numpy() from gpu
+        self.model.eval()
+        with torch.no_grad():
+            y_pred = self.model(self.X_test)
+        y_pred = y_pred.detach().cpu().numpy()
 
         
-     def optuna_trial(self, ntrials = 3):
-         def objective(trial):
+        
+        
+        
+        plt.figure(figsize=(10, 5))
+
+
+        plt.plot(self.y_test.numpy(), label='True Values', color='blue')
+        plt.plot(y_pred, label='Predicted Values', color='red')   
+        mse = np.mean((self.y_test.numpy() - y_pred) ** 2)
+        mae = np.mean(np.abs(self.y_test.numpy() - y_pred))
+        title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
+        plt.title(title)
+        if save_name is not None:
+            plt.savefig(save_name)
+
+        return mae
+
+        
+    def optuna_trial(self, ntrials = 3):
+        def objective(trial):
             hidden_dims = trial.suggest_categorical("hidden_dims", [
-    [512, 256],
-    [512, 512, 256],
-    [1024, 512, 256],
-    [1024, 1024, 512, 256],
-    [2048, 1024, 512],
-    [2048, 1024, 512, 256],
-    [2048, 2048, 1024, 1024, 512],
-    [2048, 2048, 1024, 1024, 1024, 1024, 256],
-    [2048, 2048, 2048, 1024, 1024, 1024, 1024, 512, 256],
-    [2048, 2048, 2048, 2048, 2048, 1024, 1024, 1024, 512, 256],
+                                                                    [512, 256],
+                                                                    [512, 512, 256],
+                                                                    [1024, 512, 256],
+                                                                    [1024, 1024, 512, 256],
+                                                                    [2048, 1024, 512],
+                                                                    [2048, 1024, 512, 256],
+                                                                    [2048, 2048, 1024, 1024, 512],
+                                                                    [2048, 2048, 1024, 1024, 1024, 1024, 256],
+                                                                    [2048, 2048, 2048, 1024, 1024, 1024, 1024, 512, 256],
+                                                                    [2048, 2048, 2048, 2048, 2048, 1024, 1024, 1024, 512, 256],
 
-    [4096, 2048, 1024],
-    [4096, 2048, 1024, 512],
-    [4096, 2048, 1024, 512, 256],
-    [4096, 2048, 1024, 512, 256, 128],
-    [4096, 2048, 1024, 512, 256, 128, 64],
-    [4096, 2048, 2048, 1024, 512, 256, 128, 64],
-    [4096, 4096, 2048, 1024, 512, 256],
-    [4096, 4096, 2048, 1024, 512, 256, 128],
-    [4096, 4096, 2048, 2048, 1024, 512, 256, 128, 64],
-    [4096, 4096, 4096, 2048, 1024, 512, 256, 128, 64, 64],  # 10 layers
+                                                                    [4096, 2048, 1024],
+                                                                    [4096, 2048, 1024, 512],
+                                                                    [4096, 2048, 1024, 512, 256],
+                                                                    [4096, 2048, 1024, 512, 256, 128],
+                                                                    [4096, 2048, 1024, 512, 256, 128, 64],
+                                                                    [4096, 2048, 2048, 1024, 512, 256, 128, 64],
+                                                                    [4096, 4096, 2048, 1024, 512, 256],
+                                                                    [4096, 4096, 2048, 1024, 512, 256, 128],
+                                                                    [4096, 4096, 2048, 2048, 1024, 512, 256, 128, 64],
+                                                                    [4096, 4096, 4096, 2048, 1024, 512, 256, 128, 64, 64],  # 10 layers
 
-    [2048, 1024, 512, 256, 128, 64],
-    [2048, 1024, 512, 512, 256, 128, 64],
-    [2048, 2048, 1024, 512, 256, 256, 128, 64],
-    [2048, 2048, 2048, 1024, 512, 256, 256, 128, 64],
-    [1024, 512, 256, 128, 64],
-    [1024, 1024, 512, 256, 128, 64],
-    [512, 512, 256, 128, 64],
-    [512, 256, 128, 64],
-])
+                                                                    [2048, 1024, 512, 256, 128, 64],
+                                                                    [2048, 1024, 512, 512, 256, 128, 64],
+                                                                    [2048, 2048, 1024, 512, 256, 256, 128, 64],
+                                                                    [2048, 2048, 2048, 1024, 512, 256, 256, 128, 64],
+                                                                    [1024, 512, 256, 128, 64],
+                                                                    [1024, 1024, 512, 256, 128, 64],
+                                                                    [512, 512, 256, 128, 64],
+                                                                    [512, 256, 128, 64],
+                                                                ]
+            )
 
 
             dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
@@ -488,17 +500,17 @@ class Model_FFN:
             return mae
 
         # 🚀 Run Optuna Study
-         study = optuna.create_study(direction="minimize")
-         study.optimize(objective, n_trials=ntrials)
+        study = optuna.create_study(direction="minimize")
+        study.optimize(objective, n_trials=ntrials)
          ##save as pickle file
-         with open('optuna_study_results.pkl', 'wb') as f:
-             pickle.dump(study.best_trial, f)
-         return study.best_trial
+        with open('optuna_study_results.pkl', 'wb') as f:
+            pickle.dump(study.best_trial, f)
+        return study.best_trial
      
 
 
 
-     def lrp_calc_and_plot(self, save_name = None):
+    def lrp_calc_and_plot(self, save_name = None):
 
     
         input_tensor = self.X_test.view(self.X_test.shape[0], -1).clone().detach().requires_grad_(True)
