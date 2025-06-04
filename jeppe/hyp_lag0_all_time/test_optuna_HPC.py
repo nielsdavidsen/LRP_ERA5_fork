@@ -14,18 +14,13 @@ def apply_best_hyperparams(model, best_params):
     dropout_rate = best_params["dropout_rate"]
     learning_rate = best_params["learning_rate"]
     weight_decay = best_params["weight_decay"]
-    output_activation = best_params.get("output_activation", "none")
 
-    # Map activation string to boolean flags
-    sigmoid_output = output_activation == "sigmoid"
-    relu_output = output_activation == "relu"
+
 
     # Build and train the model
     model.build_model(
         dropout_rate=dropout_rate,
         hidden_dims=hidden_dims,
-        Sigmoid_output=sigmoid_output,
-        ReLU_output=relu_output,
     )
 
     model.train_model(
@@ -37,23 +32,23 @@ def apply_best_hyperparams(model, best_params):
 
 
 
-lag = 4
+lag = 0
 model = 0
 model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
-model.load_data(sub_sampling=False, five_year_test=True)
+model.load_data(sub_sampling=False, five_year_test=False)
 model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.1)
-model.optuna_trial(ntrials=30)
+model.optuna_trial(ntrials=200)
 
 ## load dictionary with best hyperparameters, in current folder called 'best_trial.pkl'
 import pickle
 with open('optuna_study_results.pkl', 'rb') as f:
     best_params = pickle.load(f)
 
-lag = 4
+lag = 0
 model = 0
 model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
-model.load_data(sub_sampling=False, five_year_test=True)
+model.load_data(sub_sampling=False, five_year_test=False)
 model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.1)
 apply_best_hyperparams(model, best_params.params)
