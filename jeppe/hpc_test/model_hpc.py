@@ -151,27 +151,27 @@ class Model_FFN:
 ##################################T2m#############################################
 
 
-        file_paths_t850 = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_temperature_merged.nc"
-        ds_t850 = xr.open_dataset(file_paths_t850).isel(pressure_level=0).sel(
+        file_paths_t2m = "/dmidata/users/jpgp/AppML/ERA5/all_years/ERA5_temperature_merged.nc"
+        ds_t2m = xr.open_dataset(file_paths_t2m).isel(pressure_level=0).sel(
                                 latitude=slice(self.latitude_range[0], self.latitude_range[1]),
                                 longitude=slice(self.longitude_range[0], self.longitude_range[1])
                                         )
-        doy_t850 = ds_t850['valid_time'].dt.dayofyear
-        ds_t850 = ds_t850.assign_coords(day_of_year=doy_t850)
-        t850_stand = ds_t850['t'].groupby('day_of_year').map(standard_scale_day)
-        ds_t850['t850_stand'] = t850_stand
+        doy_t2m = ds_t2m['valid_time'].dt.dayofyear
+        ds_t2m = ds_t2m.assign_coords(day_of_year=doy_t2m)
+        t2m_stand = ds_t2m['t2m'].groupby('day_of_year').map(standard_scale_day)
+        ds_t2m['t2m_stand'] = t2m_stand
 
         if five_year_test:
             print("Using 5-year test data...")
-            ds_t850 = ds_t850.isel(time=slice(0, 1827))
-            t850_input = ds_t850.t850_stand.values
+            ds_t2m = ds_t2m.isel(time=slice(0, 1827))
+            t2m_input = ds_t2m.t2m_stand.values
         if not five_year_test:
             print("Using full dataset...")
-            t850_input = ds_t850.t850_stand.values
-        if np.isnan(t850_input).any():
+            t2m_input = ds_t2m.t2m_stand.values
+        if np.isnan(t2m_input).any():
             raise ValueError("NaN values found in the input data. Please check the dataset for missing values.")
 
-        print("T850 input shape:", t850_input.shape)
+        print("t2m input shape:", t2m_input.shape)
 
 
     #################### precipitation ##########################################
@@ -200,7 +200,7 @@ class Model_FFN:
 
 
 
-        X = np.stack([t850_input, msl_input], axis=1)
+        X = np.stack([t2m_input, msl_input], axis=1)
         
         if sub_sampling:
             print("Sub-sampling data...")
@@ -368,6 +368,8 @@ class Model_FFN:
             self.model.train()
             train_loss = 0.0
             for x_batch, y_batch in train_loader:
+                x_batch = x_batch.to(self.DEVICE)
+                y_batch = y_batch.to(self.DEVICE)
                 optimizer.zero_grad()
                 pred = self.model(x_batch)
                 loss = criterion(pred, y_batch)

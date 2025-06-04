@@ -1,11 +1,12 @@
 import os
 import sys
 import torch
-from model import Model_FFN
-
-
 device = torch.device('cuda:3') if torch.cuda.is_available() else 'cpu'
-print('Using device:', device)
+
+from model_hpc import Model_FFN
+import time
+t0 = time.time()
+
 
 def apply_best_hyperparams(model, best_params):
     # Unpack parameters
@@ -40,10 +41,10 @@ lag = 4
 model = 0
 # model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
 model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5')
-model.load_data(sub_sampling=False)
+model.load_data(sub_sampling=False, five_year_test=True)
 model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.1)
-model.optuna_trial(ntrials=1)
+model.optuna_trial(ntrials=10)
 
 ## load dictionary with best hyperparameters, in current folder called 'best_trial.pkl'
 import pickle
@@ -54,13 +55,20 @@ lag = 4
 model = 0
 # model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5', DEVICE=device)
 model = Model_FFN(data_path='/Users/jeppegrejspetersen/Code/Final_project_AppML/era5')
-model.load_data(sub_sampling=False)
+model.load_data(sub_sampling=False, five_year_test=True)
 model.lag_data(lag=lag)
 model.prepare_data_for_tensorflow(test_size=0.1)
 apply_best_hyperparams(model, best_params)
 model.plot_model_on_test(title=f'FFN model with lag {lag}', save_name='FFN_lag_' + str(lag) + '.png')
 model.lrp_calc_and_plot(save_name='FFN_lag_' + str(lag) + '_LRP.png')
 
+t1 = time.time()
 
+
+##write the above to file
+with open('execution_time.txt', 'w') as f:
+    f.write(f"Script finished in {t1 - t0:.2f} seconds\n")
+    f.write(f"Total time: {t1 - t0:.2f/60} minutes\n")
+    f.write(f"Total time: {t1 - t0:.2f/3600} hours\n")
 
 
