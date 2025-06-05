@@ -408,30 +408,7 @@ class Model_FFN:
             #return self.model
    
 
-    def plot_model_on_test(self, title = 'Model Performance on Test Data', save_name = None):
-        ## get self.model(self.X_test).detach().numpy() from gpu
-        self.model.eval()
-        with torch.no_grad():
-            y_pred = self.model(self.X_test)
-        y_pred = y_pred.detach().cpu().numpy()
-
-        
-        
-        
-        
-        plt.figure(figsize=(10, 5))
-
-
-        plt.plot(self.y_test.numpy(), label='True Values', color='blue')
-        plt.plot(y_pred, label='Predicted Values', color='red')   
-        mse = np.mean((self.y_test.numpy() - y_pred) ** 2)
-        mae = np.mean(np.abs(self.y_test.numpy() - y_pred))
-        title = f"{title} - MSE: {mse:.4f}, MAE: {mae:.4f}"
-        plt.title(title)
-        if save_name is not None:
-            plt.savefig(save_name)
-
-        return mse, mae
+    
 
         
     def optuna_trial(self, ntrials = 3):
@@ -450,7 +427,7 @@ class Model_FFN:
 
                                                                     [4096, 2048, 1024],
                                                                     [4096, 2048, 1024, 512],
-                                                                    [4096, 2048, 1024, 512, 256],
+                                                                     [4096, 2048, 1024, 512, 256],
                                                                     [4096, 2048, 1024, 512, 256, 128],
                                                                     [4096, 2048, 1024, 512, 256, 128, 64],
                                                                     [4096, 2048, 2048, 1024, 512, 256, 128, 64],
@@ -502,6 +479,67 @@ class Model_FFN:
             pickle.dump(study.best_trial, f)
         return study.best_trial
      
+
+
+    
+    
+    def plot_model_on_test(self, ax_title= 'Model Performance on Test Data', save_name = None):
+        self.model.eval()
+        with torch.no_grad():
+            y_pred = self.model(self.X_test)
+        y_pred = y_pred.detach().cpu().numpy()  # Move to CPU and convert to numpy array
+        
+        
+        
+        
+        rc = {
+            "font.family": "serif",
+            "mathtext.fontset": "stix"
+        }
+        plt.rcParams.update(rc)
+        plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
+
+        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 5))
+
+        ax[0].plot(self.y_test.numpy(), label='True Values', color='cornflowerblue', ls='', marker='.', markersize=3)
+        ax[0].plot(y_pred, label='Predicted Values', color='indianred', alpha=0.7, ls='', marker='.', markersize=3)   
+        mse = np.mean((self.y_test.numpy() - y_pred) ** 2)
+        mae = np.mean(np.abs(self.y_test.numpy() - y_pred))
+        
+        bbox_props = dict(boxstyle='round', facecolor='white', alpha=0.7, pad=0.5, edgecolor='lightgrey')
+        ax[0].text(0.058, 0.8, f'MSE: {mse:.2f}\nMAE: {mae:.2f}', 
+           transform=ax[0].transAxes, fontsize=12, verticalalignment='center', horizontalalignment='center', bbox=bbox_props)
+        ax[0].set_title(ax_title, fontsize=20)
+        ax[0].set_xlabel('Sample Index', fontsize=15)
+        ax[0].set_ylabel('Precipitation (mm)', fontsize=15)
+        ax[0].grid(True, linestyle='--', alpha=0.7, axis='both', color='white')
+        ax[0].legend(fontsize=12, loc='lower left')
+
+
+        residuals = self.y_test.numpy() - y_pred
+        hist_range = [-1,1]
+        ax[1].hist(residuals, range=hist_range, label='Residuals (truth - pred.)', bins=50, color='mediumpurple', alpha=0.5, histtype='stepfilled', edgecolor='dimgrey')
+        ax[1].set_xlabel('Residuals', fontsize=15)
+        ax[1].set_ylabel('Frequency', fontsize=15)
+        ax[1].set_title('Residual Distribution', fontsize=20)
+        ax[1].grid(True, linestyle='--', alpha=0.7, axis='y', color='white')
+        ax[1].legend(fontsize=12, loc='upper left')
+
+
+        spine_args = ['top', 'right', 'left', 'bottom']
+
+        for a in ax:
+            a.set_facecolor('gainsboro')
+            for spine in spine_args:
+                a.spines[spine].set_visible(False)
+            a.tick_params(axis='both', which='both', length=0)
+            
+
+        plt.tight_layout()
+        if save_name is not None:
+           plt.savefig(save_name)
+
+        return mse, mae
 
 
 
@@ -575,6 +613,94 @@ class Model_FFN:
 
 
 
+    def lrp_calc_and_plot(self, save_name = None, title = 'LRP Attribution for FFNN Model'):
+
+        rc = {
+            "font.family": "serif",
+            "mathtext.fontset": "stix"
+        }
+        plt.rcParams.update(rc)
+        plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
+
+        ##### below is prev code, testing the code above
+
+        # fig_lrp, ax_lrp = plrp.plot_LRP(attr_sum)
+        input_tensor = self.X_test.view(self.X_test.shape[0], -1).clone().detach().requires_grad_(True)
+
+        # aplying rules to the model
+        for layer in self.model.modules():
+            for key, value in rules_dict.items():
+                if isinstance(layer, key):
+                    layer.rule = value
+        
+
+        
+
+        lrp = LRP(self.model)
+
+        attributions = lrp.attribute(input_tensor)
+        attributions = attributions.detach().cpu().numpy()  # Convert to numpy array
+
+        if self.OG_shape is not None:
+            attr_sum = np.sum(attributions.reshape(self.OG_shape), axis=0)
+        
+        global_max = max(
+            np.abs(attr_sum[0].max()),
+            np.abs(attr_sum[1].max())
+        )
+
+        lrp_norm = attr_sum / global_max
+
+        fig, axs = plt.subplots(ncols=2, 
+                               nrows=1, 
+                               figsize=(12,5), 
+                               subplot_kw={'projection': ccrs.NorthPolarStereo() },
+                               dpi = 300
+        )
+
+
+        axs[0].set_title('LRP Attribution for Temperature at 2m', fontsize=15)
+        cbar = axs[0].pcolormesh(self.lon_for_plot,
+                                self.lat_for_plot,
+                                lrp_norm[0],
+                                cmap='RdBu',
+                                transform=ccrs.PlateCarree(),
+                                vmin=-1, 
+                                vmax=1
+
+        )
+
+        axs[1].set_title('LRP Attribution for Mean Sea Level Pressure', fontsize=15)
+        axs[1].pcolormesh(self.lon_for_plot,
+                                self.lat_for_plot,
+                                lrp_norm[1],
+                                cmap='RdBu',
+                                transform=ccrs.PlateCarree(),
+                                vmin=-1, 
+                                vmax=1
+        )
+        # Add Colorbar to the plot
+        fig.colorbar(cbar, 
+                     ax=axs, 
+                     orientation='horizontal', 
+                     fraction=0.05, 
+                     pad=0.04, 
+                     label='LRP Attribution Value')
+        
+        for ax in axs.flatten():
+            ax.coastlines()
+            ax.gridlines(color='white', linestyle='--', alpha=1)
+            ax.set_facecolor('gainsboro')
+            ax.set_extent([-90, 30, 39, 90], ccrs.PlateCarree())
+            for spine in ax.spines.values():
+                spine.set_visible(False)        
+
+
+        plt.suptitle('LRP Attribution for FFNN Model', fontsize=20)
+
+
+        if save_name is not None:
+            plt.savefig(save_name, dpi=300)
 
 
 
