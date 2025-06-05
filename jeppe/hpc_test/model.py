@@ -481,8 +481,8 @@ class Model_FFN:
 
         fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 5))
 
-        ax[0].plot(self.y_test.numpy(), label='True Values', color='teal')
-        ax[0].plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='orange')   
+        ax[0].plot(self.y_test.numpy(), label='True Values', color='cornflowerblue', ls='', marker='.', markersize=3)
+        ax[0].plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='indianred', alpha=0.7, ls='', marker='.', markersize=3)   
         mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
         mae = np.mean(np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy()))
         
@@ -498,10 +498,10 @@ class Model_FFN:
 
         residuals = self.y_test.numpy() - self.model(self.X_test).detach().numpy()
         hist_range = [-1,1]
-        ax[1].hist(residuals, range=hist_range, label='Residuals (truth - pred.)', bins=50, color='forestgreen', alpha=0.7, histtype='stepfilled', edgecolor='black')
+        ax[1].hist(residuals, range=hist_range, label='Residuals (truth - pred.)', bins=50, color='mediumpurple', alpha=0.5, histtype='stepfilled', edgecolor='dimgrey')
         ax[1].set_xlabel('Residuals', fontsize=15)
         ax[1].set_ylabel('Frequency', fontsize=15)
-        ax[1].set_title('Residuals Distribution', fontsize=20)
+        ax[1].set_title('Residual Distribution', fontsize=20)
         ax[1].grid(True, linestyle='--', alpha=0.7, axis='y', color='white')
         ax[1].legend(fontsize=12, loc='upper left')
 
@@ -568,7 +568,7 @@ class Model_FFN:
         )
 
 
-        axs[0].set_title('LRP Attribution for 850hPa Temperature', fontsize=15)
+        axs[0].set_title('LRP Attribution for Temperature at 2m', fontsize=15)
         cbar = axs[0].pcolormesh(self.lon_for_plot,
                                 self.lat_for_plot,
                                 lrp_norm[0],
