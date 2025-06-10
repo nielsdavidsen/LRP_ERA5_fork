@@ -1,1 +1,9 @@
 added file for git
+
+Arbejdsgang for git
+git pull
+git status
+(tjekker lige hvilke filer den arbejder med)
+git add . (. betyder alle filer (gør ikke hvis der er et envioument)) (ellers bare filnavn)
+git commit -m "Beskrivelse af filen"
+git push

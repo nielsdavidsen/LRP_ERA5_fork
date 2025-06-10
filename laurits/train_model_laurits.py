@@ -18,7 +18,7 @@ from sklearn.metrics import roc_curve, auc, recall_score precision_score
 import pickle
 
 networktype = 'FFNN'
-datatype = 'CMIP6'
+datatype = 'era5'
 
 args = prep.setup_argperse(datatype, networktype).parse_args()
 

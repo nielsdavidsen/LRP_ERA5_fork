@@ -302,8 +302,8 @@ def prepare_data_for_tensorflow(self,
                 early_stopping_patience=7
             )
 
-            mse = self.plot_model_on_test()
-            return mse
+            mae = self.plot_model_on_test()
+            return mae
 
         study = optuna.create_study(direction="minimize")
         study.optimize(objective, n_trials=ntrials)
@@ -322,7 +322,7 @@ def prepare_data_for_tensorflow(self,
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         # Loss, optimizer, and scheduler
-        criterion = nn.MSELoss()
+        criterion = nn.MAELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=factor, patience=patience,
                                       )
@@ -375,16 +375,9 @@ def prepare_data_for_tensorflow(self,
 
 
     def plot_model_on_test(self):
-         plt.figure(figsize=(10, 5))
+         plt.figure(figsize=(10, 5), dpi=1200)
          plt.plot(self.y_test.numpy(), label='True Values', color='blue')
          plt.plot(self.model(self.X_test).detach().numpy(), label='Predicted Values', color='red')   
-         mse = np.mean((self.y_test.numpy() - self.model(self.X_test).detach().numpy()) ** 2)
-         plt.title(f'Model Predictions vs True Values (MSE: {mse:.4f})')
-         return mse
-
-
-
-                
-
-
-
+         mae = np.abs(self.y_test.numpy() - self.model(self.X_test).detach().numpy())
+         plt.title(f'Model Predictions vs True Values (MAE: {mae:.4f})')
+         return mae
